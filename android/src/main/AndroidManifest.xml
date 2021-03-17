@@ -1,0 +1,14 @@
+
+  <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+      package="com.mazsoft.capacitor.plugin.app.fused.location.capacitorpluginappfusedlocation">
+
+      <!-- Internet -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Geolocation API -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" />
+
+  </manifest>
+  
