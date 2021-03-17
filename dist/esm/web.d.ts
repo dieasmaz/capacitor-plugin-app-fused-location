@@ -1,5 +1,5 @@
 import { WebPlugin } from '@capacitor/core';
-import { CallbackID, CapacitorPluginAppFusedLocationPlugin, PermissionStatus, Position, PositionOptions, WatchPositionCallback } from './definitions';
+import { CallbackID, CapacitorPluginAppFusedLocationPlugin, Position, PositionOptions, WatchPositionCallback } from './definitions';
 export declare class CapacitorPluginAppFusedLocationWeb extends WebPlugin implements CapacitorPluginAppFusedLocationPlugin {
     constructor();
     getCurrentPosition(options?: PositionOptions): Promise<Position>;
@@ -7,9 +7,6 @@ export declare class CapacitorPluginAppFusedLocationWeb extends WebPlugin implem
     clearWatch(options: {
         id: string;
     }): Promise<void>;
-    checkPermissions(): Promise<PermissionStatus>;
-    requestPermissions(): Promise<PermissionsRequestResult>;
 }
 declare const CapacitorPluginAppFusedLocation: CapacitorPluginAppFusedLocationWeb;
 export { CapacitorPluginAppFusedLocation };
-import { PermissionsRequestResult } from '@capacitor/core/dist/esm/definitions';

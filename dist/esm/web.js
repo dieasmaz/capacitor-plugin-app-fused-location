@@ -41,22 +41,6 @@ export class CapacitorPluginAppFusedLocationWeb extends WebPlugin {
             window.navigator.geolocation.clearWatch(parseInt(options.id, 10));
         });
     }
-    checkPermissions() {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (typeof navigator === 'undefined' || !navigator.permissions) {
-                throw new Error('Permissions API not available in this browser');
-            }
-            const permission = yield window.navigator.permissions.query({
-                name: 'geolocation',
-            });
-            return { location: permission.state };
-        });
-    }
-    requestPermissions() {
-        return __awaiter(this, void 0, void 0, function* () {
-            throw new Error('Not implemented on web.');
-        });
-    }
 }
 const CapacitorPluginAppFusedLocation = new CapacitorPluginAppFusedLocationWeb();
 export { CapacitorPluginAppFusedLocation };

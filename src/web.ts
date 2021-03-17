@@ -2,7 +2,6 @@ import { WebPlugin } from '@capacitor/core';
 import {
   CallbackID,
   CapacitorPluginAppFusedLocationPlugin,
-  PermissionStatus,
   Position,
   PositionOptions,
   WatchPositionCallback,
@@ -62,22 +61,6 @@ export class CapacitorPluginAppFusedLocationWeb
   async clearWatch(options: { id: string }): Promise<void> {
     window.navigator.geolocation.clearWatch(parseInt(options.id, 10));
   }
-
-  async checkPermissions(): Promise<PermissionStatus> {
-    if (typeof navigator === 'undefined' || !navigator.permissions) {
-      throw new Error('Permissions API not available in this browser');
-    }
-
-    const permission = await window.navigator.permissions.query({
-      name: 'geolocation',
-    });
-
-    return { location: permission.state };
-  }
-
-  async requestPermissions(): Promise<PermissionsRequestResult> {
-    throw new Error('Not implemented on web.');
-  }
 }
 
 const CapacitorPluginAppFusedLocation = new CapacitorPluginAppFusedLocationWeb();
@@ -85,5 +68,5 @@ const CapacitorPluginAppFusedLocation = new CapacitorPluginAppFusedLocationWeb()
 export { CapacitorPluginAppFusedLocation };
 
 import { registerWebPlugin } from '@capacitor/core';
-import { PermissionsRequestResult } from '@capacitor/core/dist/esm/definitions';
+
 registerWebPlugin(CapacitorPluginAppFusedLocation);

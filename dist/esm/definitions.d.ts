@@ -27,12 +27,6 @@ export interface CapacitorPluginAppFusedLocationPlugin {
      * @since 1.0.0
      */
     clearWatch(options: ClearWatchOptions): Promise<void>;
-    /**
-     * Check location permissions
-     *
-     * @since 1.0.0
-     */
-    checkPermissions(): Promise<PermissionStatus>;
 }
 export interface ClearWatchOptions {
     id: CallbackID;
