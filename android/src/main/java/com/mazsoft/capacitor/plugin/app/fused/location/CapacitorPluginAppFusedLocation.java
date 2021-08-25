@@ -150,16 +150,16 @@ public class CapacitorPluginAppFusedLocation extends Plugin {
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(getContext());
 
-        LocationManager lm = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+        //LocationManager lm = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
 
         boolean networkEnabled = false;
 
-        try {
-            networkEnabled = lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-        } catch (Exception ex) {
-            call.error("Error checking NETWORK_PROVIDER availability.");
-            return;
-        }
+        //try {
+        //   networkEnabled = lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        //} catch (Exception ex) {
+        //    call.error("Error checking NETWORK_PROVIDER availability.");
+        //    return;
+        //}
 
         LocationRequest locationRequest = new LocationRequest();
         locationRequest.setMaxWaitTime(timeout);
