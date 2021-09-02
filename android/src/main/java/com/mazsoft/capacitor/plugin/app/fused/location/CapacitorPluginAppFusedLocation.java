@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
 import android.os.Build;
+import android.util.Log;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.NativePlugin;
@@ -23,12 +24,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 @NativePlugin(
-    permissions = { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION },
-    permissionRequestCode = CapacitorPluginAppFusedLocationConstants.CAPACITOR_PLUGIN_APP_FUSED_LOCATION_REQUEST
+        permissions = { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION },
+        permissionRequestCode = CapacitorPluginAppFusedLocationConstants.CAPACITOR_PLUGIN_APP_FUSED_LOCATION_REQUEST
 )
 public class CapacitorPluginAppFusedLocation extends Plugin {
 
-    static final String locationTag = "capacitor_plugin_app_fused_location";
+    static final String locationTag = "CapPlugAppFusedLocation";
     String[] locationPermissions = { Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION };
 
     private Map<String, PluginCall> watchingCalls = new HashMap<>();
@@ -144,7 +145,7 @@ public class CapacitorPluginAppFusedLocation extends Plugin {
     private void requestLocationUpdates(final PluginCall call) {
         clearLocationUpdates();
 
-        boolean enableHighAccuracy = call.getBoolean("enableHighAccuracy", false);
+        // boolean enableHighAccuracy = call.getBoolean("enableHighAccuracy", false);
 
         int timeout = call.getInt("timeout", 10000);
 
@@ -161,48 +162,58 @@ public class CapacitorPluginAppFusedLocation extends Plugin {
         //    return;
         //}
 
-        LocationRequest locationRequest = new LocationRequest();
+        LocationRequest locationRequest = LocationRequest.create();
         locationRequest.setMaxWaitTime(timeout);
         locationRequest.setInterval(10000);
         locationRequest.setFastestInterval(5000);
 
-        if (!enableHighAccuracy) {
-            // int priority = networkEnabled ? LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY : LocationRequest.PRIORITY_LOW_POWER;
-            locationRequest.setPriority(networkEnabled ? LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY : LocationRequest.PRIORITY_LOW_POWER);
-        } else {
-            locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        }
+        //if (!enableHighAccuracy) {
+        //    locationRequest.setPriority(networkEnabled ? LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY : LocationRequest.PRIORITY_LOW_POWER);
+        //} else {
+        //    locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        //}
+
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
         locationCallback =
-            new LocationCallback() {
-                @Override
-                public void onLocationResult(LocationResult locationResult) {
-                    if (call.getMethodName().equals("getCurrentPosition")) {
-                        clearLocationUpdates();
-                    }
+                new LocationCallback() {
+                    @Override
+                    public void onLocationResult(LocationResult locationResult) {
+                        if (call.getMethodName().equals("getCurrentPosition")) {
+                            clearLocationUpdates();
+                        }
 
-                    if (locationResult == null) {
-                        return;
-                    }
+                        if (locationResult == null) {
+                            call.error("NULL Location Result Received");
+                            return;
+                        }
 
-                    for (Location location : locationResult.getLocations()) {
-                        if (location == null) {
-                            call.error("location unavailable");
+                        JSObject locationReceived = null;
+                        for (Location location : locationResult.getLocations()) {
+                            if (location == null) {
+                                Log.v(locationTag, "NULL Location Received");
+                                continue;
+                            }
+
+                            locationReceived = getJSObjectForLocation(location);
+                        }
+
+                        if(locationReceived == null) {
+                            call.error("NULL Location Received");
                         } else {
-                            call.success(getJSObjectForLocation(location));
+                            call.success(locationReceived);
                         }
                     }
-                }
 
-                @Override
-                public void onLocationAvailability(LocationAvailability availability) {
-                    if (!availability.isLocationAvailable()) {
-                        call.error("location unavailable");
+                    @Override
+                    public void onLocationAvailability(LocationAvailability availability) {
+                        if (!availability.isLocationAvailable()) {
+                            call.error("location unavailable");
 
-                        clearLocationUpdates();
+                            clearLocationUpdates();
+                        }
                     }
-                }
-            };
+                };
 
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
     }
