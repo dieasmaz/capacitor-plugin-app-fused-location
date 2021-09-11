@@ -3,10 +3,16 @@ package com.mazsoft.capacitor.plugin.app.fused.location;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.location.GnssNavigationMessage;
 import android.location.Location;
+import android.location.LocationListener;
 import android.location.LocationManager;
+import android.location.LocationProvider;
 import android.os.Build;
+import android.os.Bundle;
 import android.util.Log;
+
+import androidx.core.app.ActivityCompat;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.NativePlugin;
@@ -27,10 +33,19 @@ import java.util.Map;
         permissions = { Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION },
         permissionRequestCode = CapacitorPluginAppFusedLocationConstants.CAPACITOR_PLUGIN_APP_FUSED_LOCATION_REQUEST
 )
-public class CapacitorPluginAppFusedLocation extends Plugin {
+public class CapacitorPluginAppFusedLocation extends Plugin implements LocationListener {
 
     static final String locationTag = "CapPlugAppFusedLocation";
     String[] locationPermissions = { Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION };
+
+    // The minimum distance to change Updates in meters
+    private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 10; // 10 meters
+
+    // The minimum time between updates in milliseconds
+    private static final long MIN_TIME_BW_UPDATES = 1000 * 60 * 1; // 1 minute
+
+    // The location received from the LocationManager
+    Location lastLocation; // last known location
 
     private Map<String, PluginCall> watchingCalls = new HashMap<>();
     private FusedLocationProviderClient fusedLocationClient;
@@ -143,79 +158,58 @@ public class CapacitorPluginAppFusedLocation extends Plugin {
 
     @SuppressWarnings("MissingPermission")
     private void requestLocationUpdates(final PluginCall call) {
-        clearLocationUpdates();
+        // getting LocationManager Service
+        LocationManager locationManager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
 
-        // boolean enableHighAccuracy = call.getBoolean("enableHighAccuracy", false);
+        if(locationManager == null) {
+            call.reject("Proveedores de ubicación deshabilitados.", "2");
+            call.release(bridge);
+            return;
+        }
 
-        int timeout = call.getInt("timeout", 10000);
+        // Removes location updates for this class
+        locationManager.removeUpdates(this);
 
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(getContext());
+        // Verify if use High Accuracy
+        boolean enableHighAccuracy = call.getBoolean("enableHighAccuracy", false);
 
-        //LocationManager lm = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+        // Getting the Location Provider that will be used
+        String providerToUse = enableHighAccuracy ? LocationManager.GPS_PROVIDER : LocationManager.NETWORK_PROVIDER;
 
-        boolean networkEnabled = false;
+        // Verifying the Location Provider availability
+        if (!locationManager.isProviderEnabled(providerToUse)) {
+            // Removes location updates for this class
+            locationManager.removeUpdates(this);
 
-        //try {
-        //   networkEnabled = lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-        //} catch (Exception ex) {
-        //    call.error("Error checking NETWORK_PROVIDER availability.");
-        //    return;
-        //}
+            locationManager = null;
 
-        LocationRequest locationRequest = LocationRequest.create();
-        locationRequest.setMaxWaitTime(timeout);
-        locationRequest.setInterval(10000);
-        locationRequest.setFastestInterval(5000);
+            call.reject("Proveedor de ubicación deshabilitado.", "2");
+            call.release(bridge);
 
-        //if (!enableHighAccuracy) {
-        //    locationRequest.setPriority(networkEnabled ? LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY : LocationRequest.PRIORITY_LOW_POWER);
-        //} else {
-        //    locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        //}
+            return;
+        }
 
-        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        Log.d(locationTag, "Getting user location from provider: " + enableHighAccuracy ? "GPS_PROVIDER" : "NETWORK_PROVIDER");
 
-        locationCallback =
-                new LocationCallback() {
-                    @Override
-                    public void onLocationResult(LocationResult locationResult) {
-                        if (call.getMethodName().equals("getCurrentPosition")) {
-                            clearLocationUpdates();
-                        }
+        // Requesting location updates
+        locationManager.requestSingleUpdate(providerToUse, this, null);
 
-                        if (locationResult == null) {
-                            call.error("NULL Location Result Received");
-                            return;
-                        }
+        // Getting the Last Known Location
+        Location location = locationManager.getLastKnownLocation(providerToUse);
 
-                        JSObject locationReceived = null;
-                        for (Location location : locationResult.getLocations()) {
-                            if (location == null) {
-                                Log.v(locationTag, "NULL Location Received");
-                                continue;
-                            }
+        // Verifying the returned location
+        if (location == null) {
+            call.reject("Ubicación no disponible.", "2");
+        } else {
+            call.resolve(getJSObjectForLocation(location));
+        }
 
-                            locationReceived = getJSObjectForLocation(location);
-                        }
+        call.release(bridge);
 
-                        if(locationReceived == null) {
-                            call.error("NULL Location Received");
-                        } else {
-                            call.success(locationReceived);
-                        }
-                    }
+        // Removes location updates for this class
+        locationManager.removeUpdates(this);
+        locationManager = null;
 
-                    @Override
-                    public void onLocationAvailability(LocationAvailability availability) {
-                        if (!availability.isLocationAvailable()) {
-                            call.error("location unavailable");
-
-                            clearLocationUpdates();
-                        }
-                    }
-                };
-
-        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null);
     }
 
     private void clearLocationUpdates() {
@@ -223,5 +217,25 @@ public class CapacitorPluginAppFusedLocation extends Plugin {
             fusedLocationClient.removeLocationUpdates(locationCallback);
             locationCallback = null;
         }
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+
+    }
+
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) {
+
+    }
+
+    @Override
+    public void onProviderEnabled(String provider) {
+
+    }
+
+    @Override
+    public void onProviderDisabled(String provider) {
+
     }
 }
