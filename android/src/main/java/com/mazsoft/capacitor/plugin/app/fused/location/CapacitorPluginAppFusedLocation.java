@@ -189,7 +189,7 @@ public class CapacitorPluginAppFusedLocation extends Plugin implements LocationL
             return;
         }
 
-        Log.d(locationTag, "Getting user location from provider: " + enableHighAccuracy ? "GPS_PROVIDER" : "NETWORK_PROVIDER");
+        Log.d(locationTag, "Getting user location from provider: " + (enableHighAccuracy ? "GPS_PROVIDER" : "NETWORK_PROVIDER"));
 
         // Requesting location updates
         locationManager.requestSingleUpdate(providerToUse, this, null);
