@@ -3,16 +3,12 @@ package com.mazsoft.capacitor.plugin.app.fused.location;
 import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.location.GnssNavigationMessage;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.location.LocationProvider;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
-
-import androidx.core.app.ActivityCompat;
 
 import com.getcapacitor.JSObject;
 import com.getcapacitor.NativePlugin;
@@ -20,11 +16,7 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.google.android.gms.location.FusedLocationProviderClient;
-import com.google.android.gms.location.LocationAvailability;
 import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
-import com.google.android.gms.location.LocationServices;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -39,10 +31,10 @@ public class CapacitorPluginAppFusedLocation extends Plugin implements LocationL
     String[] locationPermissions = { Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION };
 
     // The minimum distance to change Updates in meters
-    private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 10; // 10 meters
+    private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 0; // 0 meters
 
     // The minimum time between updates in milliseconds
-    private static final long MIN_TIME_BW_UPDATES = 1000 * 60 * 1; // 1 minute
+    private static final int MIN_TIME_BW_UPDATES = 5000; // 5 seconds
 
     // The location received from the LocationManager
     Location lastLocation; // last known location
@@ -50,6 +42,9 @@ public class CapacitorPluginAppFusedLocation extends Plugin implements LocationL
     private Map<String, PluginCall> watchingCalls = new HashMap<>();
     private FusedLocationProviderClient fusedLocationClient;
     private LocationCallback locationCallback;
+
+    // The main location manager
+    private LocationManager locationManager = null;
 
     @PluginMethod
     public void getCurrentPosition(PluginCall call) {
@@ -158,8 +153,9 @@ public class CapacitorPluginAppFusedLocation extends Plugin implements LocationL
 
     @SuppressWarnings("MissingPermission")
     private void requestLocationUpdates(final PluginCall call) {
+
         // getting LocationManager Service
-        LocationManager locationManager = (LocationManager) getContext().getSystemService(Context.LOCATION_SERVICE);
+        this.locationManager = (LocationManager) bridge.getContext().getSystemService(Context.LOCATION_SERVICE);
 
         if(locationManager == null) {
             call.reject("Proveedores de ubicación deshabilitados.", "2");
@@ -167,61 +163,91 @@ public class CapacitorPluginAppFusedLocation extends Plugin implements LocationL
             return;
         }
 
-        // Removes location updates for this class
-        locationManager.removeUpdates(this);
+        // Getting the time out
+        int timeout = call.getInt("timeout", MIN_TIME_BW_UPDATES);
 
-        // Verify if use High Accuracy
-        boolean enableHighAccuracy = call.getBoolean("enableHighAccuracy", false);
+        // getting GPS status
+        boolean isGPSEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
 
-        // Getting the Location Provider that will be used
-        String providerToUse = enableHighAccuracy ? LocationManager.GPS_PROVIDER : LocationManager.NETWORK_PROVIDER;
+        // getting network status
+        boolean isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
 
         // Verifying the Location Provider availability
-        if (!locationManager.isProviderEnabled(providerToUse)) {
+        if (!isGPSEnabled && !isNetworkEnabled) {
             // Removes location updates for this class
             locationManager.removeUpdates(this);
-
             locationManager = null;
 
-            call.reject("Proveedor de ubicación deshabilitado.", "2");
+            call.reject("Proveedor(es) de ubicación deshabilitado(s).", "2");
             call.release(bridge);
 
             return;
         }
 
-        Log.d(locationTag, "Getting user location from provider: " + enableHighAccuracy ? "GPS_PROVIDER" : "NETWORK_PROVIDER");
+        Log.d(locationTag, "Getting user location from providers: GPS_PROVIDER and/or NETWORK_PROVIDER");
 
-        // Requesting location updates
-        locationManager.requestSingleUpdate(providerToUse, this, null);
+        // First get location from Network Provider
+        if (isNetworkEnabled) {
+            locationManager.requestLocationUpdates(
+                    LocationManager.NETWORK_PROVIDER,
+                    timeout,
+                    MIN_DISTANCE_CHANGE_FOR_UPDATES,
+                    this);
 
-        // Getting the Last Known Location
-        Location location = locationManager.getLastKnownLocation(providerToUse);
+            Log.d(locationTag, "NETWORK_PROVIDER");
+            Location networkLocation = locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+
+            if(networkLocation != null) {
+                lastLocation = networkLocation;
+            }
+        }
+
+        // if GPS Enabled get lat/long using GPS Services
+        if (isGPSEnabled && lastLocation == null) {
+            locationManager.requestLocationUpdates(
+                    LocationManager.GPS_PROVIDER,
+                    timeout,
+                    MIN_DISTANCE_CHANGE_FOR_UPDATES,
+                    this);
+
+            Log.d(locationTag, "GPS_PROVIDER");
+            Location gpsLocation = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER);
+
+            if(gpsLocation != null) {
+                lastLocation = gpsLocation;
+            }
+        }
 
         // Verifying the returned location
-        if (location == null) {
+        if (lastLocation == null) {
             call.reject("Ubicación no disponible.", "2");
         } else {
-            call.resolve(getJSObjectForLocation(location));
+            call.resolve(getJSObjectForLocation(lastLocation));
         }
 
         call.release(bridge);
 
         // Removes location updates for this class
-        locationManager.removeUpdates(this);
-        locationManager = null;
-
+        //locationManager.removeUpdates(this);
+        //locationManager = null;
     }
 
-    private void clearLocationUpdates() {
+    public void clearLocationUpdates() {
+        /*
         if (locationCallback != null) {
             fusedLocationClient.removeLocationUpdates(locationCallback);
             locationCallback = null;
+        }
+         */
+
+        if(locationManager != null) {
+            locationManager.removeUpdates(this);
         }
     }
 
     @Override
     public void onLocationChanged(Location location) {
-
+        Log.i(locationTag, "onLocationChanged " + (location == null ? "NULL": location.toString()));
     }
 
     @Override
