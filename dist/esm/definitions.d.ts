@@ -4,6 +4,7 @@ declare module '@capacitor/core' {
     }
 }
 export declare type CallbackID = string;
+export declare type PermissionState = "denied" | "granted" | "prompt";
 export interface PermissionStatus {
     location: PermissionState;
 }
